@@ -1,0 +1,992 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>基于分布匹配蒸馏的电商商品视频智能编辑系统</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Noto+Sans+SC:wght@300;400;500;600;700;900&display=swap');
+
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body {
+    font-family: 'Inter', 'Noto Sans SC', -apple-system, sans-serif;
+    background: #000000;
+    color: #eaeaef;
+    line-height: 1.65;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* ── global slide — matches PPT 16:9 (1280×720) ── */
+  .slide {
+    width: 1280px;
+    height: 720px;
+    margin: 48px auto;
+    padding: 44px 60px;
+    border-radius: 0;
+    position: relative;
+    overflow: hidden;
+  }
+  .slide-num {
+    position:absolute; bottom:28px; right:36px;
+    font-size:14px; color:rgba(255,255,255,0.18); font-weight:700; letter-spacing:2px;
+  }
+
+  /* ============================== */
+  /*  SLIDE 1 — TITLE              */
+  /* ============================== */
+  .s-title {
+    background: #000000;
+    display:flex; flex-direction:column; justify-content:center; align-items:center; text-align:center;
+  }
+  .s-title::before {
+    content:''; position:absolute; top:-160px; right:-120px;
+    width:560px; height:560px;
+    background:radial-gradient(circle, rgba(124,58,237,0.22), transparent 70%);
+  }
+  .s-title::after {
+    content:''; position:absolute; bottom:-120px; left:-80px;
+    width:480px; height:480px;
+    background:radial-gradient(circle, rgba(236,72,153,0.14), transparent 70%);
+  }
+  .s-title .badge {
+    padding:8px 28px; border:1.5px solid rgba(167,139,250,0.45); border-radius:100px;
+    font-size:15px; color:#c4b5fd; letter-spacing:4px; text-transform:uppercase;
+    margin-bottom:32px; backdrop-filter:blur(4px); background:rgba(255,255,255,0.03);
+  }
+  .s-title h1 {
+    font-size:50px; font-weight:900; line-height:1.25;
+    background:linear-gradient(135deg,#e0e7ff 0%,#c4b5fd 45%,#f0abfc 100%);
+    -webkit-background-clip:text; -webkit-text-fill-color:transparent;
+    margin-bottom:22px; max-width:900px;
+  }
+  .s-title .sub {
+    font-size:22px; color:#9ca3af; font-weight:400; max-width:760px; margin-bottom:44px;
+  }
+  .s-title .tags { display:flex; gap:14px; }
+  .s-title .tags span {
+    padding:10px 24px; background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.08);
+    border-radius:12px; font-size:16px; color:#d1d5db; font-weight:500;
+  }
+
+  /* ============================== */
+  /*  SLIDE 2 — BACKGROUND         */
+  /* ============================== */
+  .s-bg {
+    background: #000000;
+    border:1px solid rgba(255,255,255,0.05);
+  }
+  .sec-label {
+    font-size:15px; font-weight:700; color:#818cf8; letter-spacing:4px;
+    text-transform:uppercase; margin-bottom:5px;
+  }
+  .sec-title { font-size:34px; font-weight:900; margin-bottom:5px; }
+  .sec-desc  { font-size:20px; color:#9ca3af; margin-bottom:22px; }
+
+  .pain-grid { display:grid; grid-template-columns:1fr 1fr; gap:16px; }
+  .pain-card {
+    background:linear-gradient(160deg, rgba(255,255,255,0.035), rgba(255,255,255,0.015));
+    border:1px solid rgba(255,255,255,0.06); border-radius:16px;
+    padding:22px 22px; position:relative; overflow:hidden;
+  }
+  .pain-card::after {
+    content:''; position:absolute; top:0; left:0; right:0; height:3px; border-radius:20px 20px 0 0;
+  }
+  .pain-card:nth-child(1)::after { background:linear-gradient(90deg,#ef4444,#f97316); }
+  .pain-card:nth-child(2)::after { background:linear-gradient(90deg,#f59e0b,#eab308); }
+  .pain-card:nth-child(3)::after { background:linear-gradient(90deg,#3b82f6,#6366f1); }
+  .pain-card:nth-child(4)::after { background:linear-gradient(90deg,#8b5cf6,#a855f7); }
+  .pain-card .icon {
+    width:44px; height:44px; border-radius:12px;
+    display:flex; align-items:center; justify-content:center;
+    font-size:22px; margin-bottom:12px;
+  }
+  .pain-card h3 { font-size:24px; font-weight:700; margin-bottom:6px; }
+  .pain-card p  { font-size:17px; color:#a1a1aa; line-height:1.55; }
+
+  /* ============================== */
+  /*  SLIDE 3 — RELATED WORK       */
+  /* ============================== */
+  .s-methods {
+    background: #000000;
+    border:1px solid rgba(255,255,255,0.05);
+  }
+  .mcols { display:flex; gap:18px; margin-top:20px; }
+  .mcol {
+    flex:1; border-radius:16px; padding:22px 20px; position:relative; overflow:hidden;
+    display:flex; flex-direction:column;
+  }
+  .mcol::before {
+    content:''; position:absolute; top:0; left:0; right:0; height:3px;
+  }
+  .mcol.c-red   { background:rgba(239,68,68,0.04); border:1px solid rgba(239,68,68,0.14); }
+  .mcol.c-red::before   { background:linear-gradient(90deg,#ef4444,#f87171); }
+  .mcol.c-amber { background:rgba(245,158,11,0.04); border:1px solid rgba(245,158,11,0.14); }
+  .mcol.c-amber::before { background:linear-gradient(90deg,#f59e0b,#fbbf24); }
+  .mcol.c-green { background:rgba(16,185,129,0.04); border:1px solid rgba(16,185,129,0.18); }
+  .mcol.c-green::before { background:linear-gradient(90deg,#10b981,#34d399); }
+
+  .mcol .tag {
+    display:inline-block; padding:5px 14px; border-radius:8px;
+    font-size:14px; font-weight:700; letter-spacing:1.5px; margin-bottom:14px; width:fit-content;
+  }
+  .c-red   .tag { background:rgba(239,68,68,0.14); color:#fca5a5; }
+  .c-amber .tag { background:rgba(245,158,11,0.14); color:#fcd34d; }
+  .c-green .tag { background:rgba(16,185,129,0.14); color:#6ee7b7; }
+  .mcol h3 { font-size:24px; font-weight:700; margin-bottom:10px; }
+  .mcol .inbox {
+    background:rgba(0,0,0,0.25); border-radius:8px; padding:8px 12px; margin-bottom:12px;
+  }
+  .mcol .inbox .lbl {
+    font-size:14px; color:#6b7280; font-weight:700; letter-spacing:2px; margin-bottom:8px;
+  }
+  .mcol .inbox .chips { display:flex; gap:8px; flex-wrap:wrap; }
+  .mcol .inbox .chips span {
+    padding:6px 16px; border-radius:8px; font-size:15px; font-weight:600;
+  }
+  .c-red   .chips span { background:rgba(239,68,68,0.1); color:#fca5a5; }
+  .c-amber .chips span { background:rgba(245,158,11,0.1); color:#fcd34d; }
+  .c-green .chips span { background:rgba(16,185,129,0.1); color:#6ee7b7; }
+  .mcol .desc {
+    font-size:17px; color:#71717a; line-height:1.65; flex:1;
+  }
+  .mcol .desc b { color:#a1a1aa; }
+  .mcol .verdict {
+    display:flex; align-items:flex-start; gap:8px; margin-top:14px;
+    padding:10px 12px; border-radius:10px; font-size:16px; font-weight:600; line-height:1.5;
+  }
+  .c-red   .verdict { background:rgba(239,68,68,0.07); color:#fca5a5; }
+  .c-amber .verdict { background:rgba(245,158,11,0.07); color:#fcd34d; }
+  .c-green .verdict { background:rgba(16,185,129,0.07); color:#6ee7b7; }
+  .verdict .vi { font-size:20px; flex-shrink:0; margin-top:1px; }
+
+  /* ============================== */
+  /*  SLIDE 4 — APPROACH           */
+  /* ============================== */
+  .s-pipe {
+    background: #000000;
+    border:1px solid rgba(255,255,255,0.05);
+  }
+  .pipe-row {
+    display:flex; align-items:stretch; gap:0; margin-top:20px;
+  }
+  .pstep { flex:1; padding:0 6px; }
+  .pcard {
+    height:100%; border-radius:16px; padding:20px 18px; text-align:center;
+    display:flex; flex-direction:column; position:relative; overflow:hidden;
+  }
+  .pcard::before {
+    content:''; position:absolute; top:0; left:0; right:0; height:3px;
+  }
+  .pcard .num {
+    width:36px; height:36px; border-radius:50%;
+    display:flex; align-items:center; justify-content:center;
+    font-size:17px; font-weight:900; margin:0 auto 10px;
+  }
+  .pcard h4 { font-size:20px; font-weight:700; margin-bottom:3px; }
+  .pcard .en { font-size:15px; color:#6b7280; margin-bottom:10px; font-weight:500; }
+  .pcard .detail {
+    font-size:16px; color:#a1a1aa; line-height:1.65; text-align:left; flex:1;
+  }
+  .pcard .detail b { color:#d4d4d8; }
+  .pcard .output {
+    margin-top:12px; padding-top:10px;
+    border-top:1px solid rgba(255,255,255,0.06);
+    font-size:16px; font-weight:700;
+  }
+
+  .ps-data .pcard { background:rgba(59,130,246,0.05); border:1px solid rgba(59,130,246,0.18); }
+  .ps-data .pcard::before { background:linear-gradient(90deg,#3b82f6,#60a5fa); }
+  .ps-data .num { background:rgba(59,130,246,0.18); color:#93c5fd; }
+  .ps-data .output { color:#93c5fd; }
+
+  .ps-train .pcard { background:rgba(139,92,246,0.05); border:1px solid rgba(139,92,246,0.18); }
+  .ps-train .pcard::before { background:linear-gradient(90deg,#7c3aed,#a78bfa); }
+  .ps-train .num { background:rgba(139,92,246,0.18); color:#c4b5fd; }
+  .ps-train .output { color:#c4b5fd; }
+
+  .ps-dmd .pcard { background:rgba(236,72,153,0.05); border:1px solid rgba(236,72,153,0.18); }
+  .ps-dmd .pcard::before { background:linear-gradient(90deg,#db2777,#f472b6); }
+  .ps-dmd .num { background:rgba(236,72,153,0.18); color:#f9a8d4; }
+  .ps-dmd .output { color:#f9a8d4; }
+
+  .parr {
+    display:flex; align-items:center; flex:0 0 auto; padding:0 2px;
+    font-size:32px; color:#374151;
+  }
+
+  .legend {
+    margin-top:16px; display:flex; justify-content:center; align-items:center; gap:20px;
+  }
+  .legend .li { display:flex; align-items:center; gap:8px; }
+  .legend .li .d {
+    width:14px; height:14px; border-radius:50%; display:inline-block;
+  }
+  .legend .li span { font-size:17px; color:#71717a; }
+
+  /* ============================== */
+  /*  SLIDE 5 — TEAM               */
+  /* ============================== */
+  .s-team {
+    background: #000000;
+    border:1px solid rgba(255,255,255,0.05);
+  }
+  .trow { display:flex; gap:16px; margin-top:20px; }
+  .tmod {
+    flex:1; border-radius:16px; padding:20px 18px; position:relative; overflow:hidden;
+  }
+  .tmod::before {
+    content:''; position:absolute; top:0; left:0; right:0; height:3px;
+  }
+  .tmod.td { background:rgba(59,130,246,0.04); border:1px solid rgba(59,130,246,0.14); }
+  .tmod.td::before { background:linear-gradient(90deg,#3b82f6,#60a5fa); }
+  .tmod.tm { background:rgba(139,92,246,0.04); border:1px solid rgba(139,92,246,0.14); }
+  .tmod.tm::before { background:linear-gradient(90deg,#7c3aed,#a78bfa); }
+  .tmod.ta { background:rgba(236,72,153,0.04); border:1px solid rgba(236,72,153,0.14); }
+  .tmod.ta::before { background:linear-gradient(90deg,#db2777,#f472b6); }
+
+  .tmod .th {
+    display:flex; align-items:center; gap:10px; margin-bottom:14px;
+  }
+  .tmod .th .tb {
+    padding:5px 14px; border-radius:8px; font-size:14px; font-weight:700; letter-spacing:1.5px;
+  }
+  .td .tb { background:rgba(59,130,246,0.14); color:#93c5fd; }
+  .tm .tb { background:rgba(139,92,246,0.14); color:#c4b5fd; }
+  .ta .tb { background:rgba(236,72,153,0.14); color:#f9a8d4; }
+  .tmod .th h3 { font-size:24px; font-weight:700; }
+
+  .tmod .ppl { display:flex; gap:6px; margin-bottom:10px; flex-wrap:wrap; }
+  .tmod .pp {
+    flex:1; min-width:0; background:rgba(0,0,0,0.25); border-radius:10px;
+    padding:8px 6px; text-align:center;
+  }
+  .tmod .av {
+    width:34px; height:34px; border-radius:50%;
+    display:flex; align-items:center; justify-content:center;
+    font-size:13px; font-weight:900; margin:0 auto 4px; color:#fff;
+  }
+  .td .av { background:linear-gradient(135deg,#3b82f6,#1d4ed8); }
+  .tm .av { background:linear-gradient(135deg,#8b5cf6,#6d28d9); }
+  .ta .av { background:linear-gradient(135deg,#ec4899,#be185d); }
+  .tmod .pp .nm { font-size:14px; font-weight:600; margin-bottom:2px; }
+  .tmod .pp .rl { font-size:12px; color:#71717a; line-height:1.4; }
+
+  .tmod .tl { display:flex; flex-direction:column; gap:4px; }
+  .tmod .tl .ti {
+    display:flex; align-items:center; gap:6px;
+    font-size:14px; color:#a1a1aa;
+    padding:5px 8px; background:rgba(0,0,0,0.2); border-radius:6px;
+  }
+  .tmod .tl .ti .dt {
+    width:7px; height:7px; border-radius:50%; flex-shrink:0;
+  }
+  .td .dt { background:#3b82f6; }
+  .tm .dt { background:#8b5cf6; }
+  .ta .dt { background:#ec4899; }
+
+  .tsum {
+    margin-top:18px; display:flex; align-items:center; justify-content:center; gap:32px;
+    padding:16px 28px;
+    background:linear-gradient(135deg, rgba(255,255,255,0.025), rgba(255,255,255,0.01));
+    border:1px solid rgba(255,255,255,0.06); border-radius:14px;
+  }
+  .tsum .si { text-align:center; }
+  .tsum .sv {
+    font-size:28px; font-weight:900;
+    background:linear-gradient(135deg,#a78bfa,#f472b6);
+    -webkit-background-clip:text; -webkit-text-fill-color:transparent;
+  }
+  .tsum .sl { font-size:15px; color:#6b7280; margin-top:2px; }
+  .tsum .sd { width:1px; height:36px; background:rgba(255,255,255,0.07); }
+</style>
+</head>
+<body>
+
+<!-- ═══════════════════════════════════════════════ -->
+<!-- SLIDE 1  TITLE                                 -->
+<!-- ═══════════════════════════════════════════════ -->
+<div class="slide s-title">
+  <div class="badge">HKUST Research Project</div>
+  <h1>基于分布匹配蒸馏的<br>电商商品视频智能编辑系统</h1>
+  <div class="sub">DMD-based Intelligent Video Editing System for E-commerce Products</div>
+  <div class="tags">
+    <span>Video Editing</span>
+    <span>Distribution Matching Distillation</span>
+    <span>E-commerce</span>
+    <span>LoRA Fine-tuning</span>
+  </div>
+  <div class="slide-num">01 / 08</div>
+</div>
+
+<!-- ═══════════════════════════════════════════════ -->
+<!-- SLIDE 2  BACKGROUND                            -->
+<!-- ═══════════════════════════════════════════════ -->
+<div class="slide s-bg">
+  <div class="sec-label">01 &mdash; Background</div>
+  <div class="sec-title">研究背景</div>
+  <div class="sec-desc">电商视频制作面临的核心痛点</div>
+
+  <div class="pain-grid">
+    <div class="pain-card">
+      <div class="icon" style="background:rgba(239,68,68,0.1);"><span style="color:#f87171;">¥</span></div>
+      <h3>制作成本高昂</h3>
+      <p>每条商品视频需要专业拍摄团队，单条成本数千元，中小商家难以承受规模化视频制作的费用。</p>
+    </div>
+    <div class="pain-card">
+      <div class="icon" style="background:rgba(245,158,11,0.1);"><span style="color:#fbbf24;">&#9202;</span></div>
+      <h3>制作效率低下</h3>
+      <p>从拍摄、剪辑到后期，单条视频平均耗时 2-5 天。面对上千 SKU，传统流程无法满足时效需求。</p>
+    </div>
+    <div class="pain-card">
+      <div class="icon" style="background:rgba(59,130,246,0.1);"><span style="color:#60a5fa;">&#8593;</span></div>
+      <h3>规模化困难</h3>
+      <p>电商平台日均新增百万级商品，每个商品需多角度、多场景展示视频，人工制作无法规模化覆盖。</p>
+    </div>
+    <div class="pain-card">
+      <div class="icon" style="background:rgba(139,92,246,0.1);"><span style="color:#a78bfa;">&#9881;</span></div>
+      <h3>场景模板受限</h3>
+      <p>优质视频模板稀缺，商家难以复用已有高质量模板，导致视觉呈现千篇一律、缺乏差异化竞争力。</p>
+    </div>
+  </div>
+  <div class="slide-num">02 / 08</div>
+</div>
+
+<!-- ═══════════════════════════════════════════════ -->
+<!-- SLIDE 3  RELATED WORK                          -->
+<!-- ═══════════════════════════════════════════════ -->
+<div class="slide s-methods">
+  <div class="sec-label">02 &mdash; Related Work</div>
+  <div class="sec-title">现有方法与不足</div>
+  <div class="sec-desc">当前视频编辑方法的输入范式对比</div>
+
+  <div class="mcols">
+    <!-- col 1 -->
+    <div class="mcol c-red">
+      <div class="tag">MAINSTREAM</div>
+      <h3>Text-based Video Editing</h3>
+      <div class="inbox">
+        <div class="lbl">INPUT</div>
+        <div class="chips">
+          <span>Text Prompt</span>
+          <span>Source Video</span>
+        </div>
+      </div>
+      <div class="desc">
+        代表工作：<b>TokenFlow</b>、<b>Tune-A-Video</b>、<b>FateZero</b>、<b>Pix2Video</b>、<b>Video-P2P</b> 等
+      </div>
+      <div class="verdict">
+        <span class="vi">&#10007;</span>
+        <span>文本描述模糊，无法精确控制商品外观细节，不适用于电商场景</span>
+      </div>
+    </div>
+
+    <!-- col 2 -->
+    <div class="mcol c-amber">
+      <div class="tag">PIONEER</div>
+      <h3>AnyV2V</h3>
+      <div class="inbox">
+        <div class="lbl">INPUT</div>
+        <div class="chips">
+          <span>Reference Image</span>
+          <span>Source Video</span>
+        </div>
+      </div>
+      <div class="desc">
+        目前唯一支持 <b>Reference Image</b> 引导视频编辑的工作，先编辑首帧，再用 I2V 模型传播至整段视频。
+      </div>
+      <div class="verdict">
+        <span class="vi">&#9651;</span>
+        <span>方向正确，但质量与时间一致性不足、推理速度慢，难以商用</span>
+      </div>
+    </div>
+
+    <!-- col 3 -->
+    <div class="mcol c-green">
+      <div class="tag">OURS</div>
+      <h3>PVTT (本项目)</h3>
+      <div class="inbox">
+        <div class="lbl">INPUT</div>
+        <div class="chips">
+          <span>Reference Image</span>
+          <span>Source Video</span>
+          <span>Mask</span>
+        </div>
+      </div>
+      <div class="desc">
+        改造 <b>Wan2.1 / 2.2</b> 架构使其支持 Reference Image 条件输入，<b>LoRA 微调</b> + <b>DMD 蒸馏</b>加速。
+      </div>
+      <div class="verdict">
+        <span class="vi">&#10003;</span>
+        <span>精确外观控制 + 高时间一致性 + 4 步快速推理</span>
+      </div>
+    </div>
+  </div>
+  <div class="slide-num">03 / 08</div>
+</div>
+
+<!-- ═══════════════════════════════════════════════ -->
+<!-- SLIDE 4  APPROACH OVERVIEW                     -->
+<!-- ═══════════════════════════════════════════════ -->
+<div class="slide s-pipe">
+  <div class="sec-label">03 &mdash; Approach</div>
+  <div class="sec-title">技术路线总览</div>
+  <div class="sec-desc">三阶段流水线：数据构建 &rarr; 模型训练 &rarr; DMD 蒸馏加速</div>
+
+  <div class="pipe-row">
+    <div class="pstep ps-data">
+      <div class="pcard">
+        <div class="num">1</div>
+        <h4>Training Set 构建</h4>
+        <div class="en">Dataset Construction</div>
+        <div class="detail">
+          从电商平台采集原始视频素材，经过四阶段处理：<br><br>
+          <b>&#9312; 预处理</b> &mdash; 镜头切割、商品分割、背景修复<br>
+          <b>&#9313; 配对生成</b> &mdash; 交叉配对 模板 &times; 商品<br>
+          <b>&#9314; 视频合成</b> &mdash; VideoAnyDoor / InsertAnywhere<br>
+          <b>&#9315; 质量过滤</b> &mdash; CLIP-I + Qwen2-VL
+        </div>
+        <div class="output">&#10148; 产出 20K+ 高质量训练对</div>
+      </div>
+    </div>
+    <div class="parr">&rarr;</div>
+    <div class="pstep ps-train">
+      <div class="pcard">
+        <div class="num">2</div>
+        <h4>Teacher Model 训练</h4>
+        <div class="en">Wan2.1 / 2.2 架构改造 + LoRA</div>
+        <div class="detail">
+          基于 <b>Wan2.1 / 2.2</b> 视频生成模型，<b>修改架构</b>使其接收 source video + reference image 条件输入。<br><br>
+          <b>架构改造:</b> 新增 Ref Image 注入通道<br>
+          <b>LoRA 层:</b> Temporal Self-Attn + Cross-Attn<br>
+          <b>渐进策略:</b> 1.3B LoRA &rarr; 14B Partial FT &rarr; Full FT
+        </div>
+        <div class="output">&#10148; 产出 PVTT Teacher Model (50步)</div>
+      </div>
+    </div>
+    <div class="parr">&rarr;</div>
+    <div class="pstep ps-dmd">
+      <div class="pcard">
+        <div class="num">3</div>
+        <h4>DMD 蒸馏加速</h4>
+        <div class="en">Distribution Matching Distillation</div>
+        <div class="detail">
+          渐进式蒸馏，逐步压缩推理步数：<br><br>
+          <b>50 步 &rarr; 16 步 &rarr; 8 步 &rarr; 4 步</b><br><br>
+          <b>Distribution Loss</b> + <b>Regression Loss</b> 双目标优化，辅以 Flash Attention 2、INT8 量化
+        </div>
+        <div class="output">&#10148; 4 步推理, 加速 4-8&times;</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="legend">
+    <div class="li"><span class="d" style="background:#3b82f6;"></span><span>数据 (2 人)</span></div>
+    <div style="width:56px; height:2px; background:linear-gradient(90deg,#3b82f6,#8b5cf6); border-radius:1px;"></div>
+    <div class="li"><span class="d" style="background:#8b5cf6;"></span><span>训练 (2 人)</span></div>
+    <div style="width:56px; height:2px; background:linear-gradient(90deg,#8b5cf6,#ec4899); border-radius:1px;"></div>
+    <div class="li"><span class="d" style="background:#ec4899;"></span><span>蒸馏 (2 人)</span></div>
+  </div>
+  <div class="slide-num">04 / 08</div>
+</div>
+
+<!-- ═══════════════════════════════════════════════ -->
+<!-- SLIDE 5  DATASET PIPELINE DETAIL               -->
+<!-- ═══════════════════════════════════════════════ -->
+<div class="slide" style="background:#000000; border:1px solid rgba(255,255,255,0.05);">
+  <div class="sec-label">03-A &mdash; Dataset Construction</div>
+  <div class="sec-title">阶段一：训练数据集构建</div>
+  <div class="sec-desc">4 阶段流水线 &mdash; 从 53 个 Etsy 产品到 20K+ 高质量训练对</div>
+
+  <!-- Pipeline flow diagram -->
+  <div style="display:flex; gap:10px; margin-top:12px;">
+
+    <!-- Stage 1 -->
+    <div style="flex:1; border-radius:14px; overflow:hidden; border:1px solid rgba(59,130,246,0.2); background:rgba(59,130,246,0.04);">
+      <div style="background:linear-gradient(90deg,#1d4ed8,#3b82f6); padding:10px 14px; display:flex; align-items:center; gap:8px;">
+        <span style="background:rgba(255,255,255,0.2); width:28px; height:28px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:16px; font-weight:900;">1</span>
+        <span style="font-size:17px; font-weight:700;">预处理</span>
+      </div>
+      <div style="padding:12px 14px;">
+        <div style="display:flex; flex-direction:column; gap:6px;">
+          <div style="background:rgba(0,0,0,0.3); border-radius:8px; padding:8px 12px;">
+            <div style="font-size:15px; font-weight:600; color:#93c5fd; margin-bottom:4px;">镜头检测</div>
+            <div style="font-size:14px; color:#9ca3af;">PySceneDetect 切分视频为 1.5-5s 片段</div>
+          </div>
+          <div style="background:rgba(0,0,0,0.3); border-radius:8px; padding:8px 12px;">
+            <div style="font-size:15px; font-weight:600; color:#93c5fd; margin-bottom:4px;">商品分割</div>
+            <div style="font-size:14px; color:#9ca3af;">Grounded-SAM2 自动检测 + SAM2 视频传播</div>
+          </div>
+          <div style="background:rgba(0,0,0,0.3); border-radius:8px; padding:8px 12px;">
+            <div style="font-size:15px; font-weight:600; color:#93c5fd; margin-bottom:4px;">背景修复</div>
+            <div style="font-size:14px; color:#9ca3af;">VideoPainter 视频级修复，获取纯背景</div>
+          </div>
+        </div>
+        <div style="margin-top:8px; text-align:center; font-size:15px; color:#60a5fa; font-weight:600;">&#8595; 视频切片 + Mask + 纯背景</div>
+      </div>
+    </div>
+
+    <div style="display:flex; align-items:center; font-size:28px; color:#374151; flex-shrink:0;">&rarr;</div>
+
+    <!-- Stage 2 -->
+    <div style="flex:1; border-radius:14px; overflow:hidden; border:1px solid rgba(139,92,246,0.2); background:rgba(139,92,246,0.04);">
+      <div style="background:linear-gradient(90deg,#6d28d9,#8b5cf6); padding:10px 14px; display:flex; align-items:center; gap:8px;">
+        <span style="background:rgba(255,255,255,0.2); width:28px; height:28px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:16px; font-weight:900;">2</span>
+        <span style="font-size:17px; font-weight:700;">配对生成</span>
+      </div>
+      <div style="padding:12px 14px;">
+        <div style="display:flex; flex-direction:column; gap:6px;">
+          <div style="background:rgba(0,0,0,0.3); border-radius:8px; padding:8px 12px;">
+            <div style="font-size:15px; font-weight:600; color:#c4b5fd; margin-bottom:4px;">背景去除</div>
+            <div style="font-size:14px; color:#9ca3af;">rembg 将商品图片转为 RGBA 透明底</div>
+          </div>
+          <div style="background:rgba(0,0,0,0.3); border-radius:8px; padding:8px 12px;">
+            <div style="font-size:15px; font-weight:600; color:#c4b5fd; margin-bottom:4px;">交叉配对</div>
+            <div style="font-size:14px; color:#9ca3af;">53 模板 &times; 52 商品 &times; 多视角，~52K 候选</div>
+          </div>
+          <div style="background:rgba(0,0,0,0.3); border-radius:8px; padding:8px 12px;">
+            <div style="font-size:15px; font-weight:600; color:#c4b5fd; margin-bottom:4px;">合理性过滤</div>
+            <div style="font-size:14px; color:#9ca3af;">尺寸 / 品类 / 场景逻辑筛选 &rarr; ~35K</div>
+          </div>
+        </div>
+        <div style="margin-top:8px; text-align:center; font-size:15px; color:#a78bfa; font-weight:600;">&#8595; ~35K 候选训练对</div>
+      </div>
+    </div>
+
+    <div style="display:flex; align-items:center; font-size:28px; color:#374151; flex-shrink:0;">&rarr;</div>
+
+    <!-- Stage 3 -->
+    <div style="flex:1; border-radius:14px; overflow:hidden; border:1px solid rgba(245,158,11,0.2); background:rgba(245,158,11,0.04);">
+      <div style="background:linear-gradient(90deg,#d97706,#f59e0b); padding:10px 14px; display:flex; align-items:center; gap:8px;">
+        <span style="background:rgba(255,255,255,0.2); width:28px; height:28px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:16px; font-weight:900;">3</span>
+        <span style="font-size:17px; font-weight:700;">视频合成</span>
+      </div>
+      <div style="padding:12px 14px;">
+        <div style="display:flex; flex-direction:column; gap:6px;">
+          <div style="background:rgba(0,0,0,0.3); border-radius:8px; padding:8px 12px; border-left:3px solid #22c55e;">
+            <div style="font-size:15px; font-weight:600; color:#86efac; margin-bottom:4px;">路线 A (主力)</div>
+            <div style="font-size:14px; color:#9ca3af;">VideoAnyDoor / InsertAnywhere<br>背景视频 + 商品 RGBA + 轨迹 &rarr; GT</div>
+          </div>
+          <div style="background:rgba(0,0,0,0.3); border-radius:8px; padding:8px 12px; border-left:3px solid #6b7280;">
+            <div style="font-size:15px; font-weight:600; color:#d1d5db; margin-bottom:4px;">路线 B (补充)</div>
+            <div style="font-size:14px; color:#9ca3af;">TI2V Pipeline<br>FLUX 编辑首帧 + Wan2.1 视频传播</div>
+          </div>
+        </div>
+        <div style="margin-top:8px; text-align:center; font-size:15px; color:#fbbf24; font-weight:600;">&#8595; ~25K 合成视频</div>
+      </div>
+    </div>
+
+    <div style="display:flex; align-items:center; font-size:28px; color:#374151; flex-shrink:0;">&rarr;</div>
+
+    <!-- Stage 4 -->
+    <div style="flex:1; border-radius:14px; overflow:hidden; border:1px solid rgba(16,185,129,0.2); background:rgba(16,185,129,0.04);">
+      <div style="background:linear-gradient(90deg,#059669,#10b981); padding:10px 14px; display:flex; align-items:center; gap:8px;">
+        <span style="background:rgba(255,255,255,0.2); width:28px; height:28px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:16px; font-weight:900;">4</span>
+        <span style="font-size:17px; font-weight:700;">质量过滤</span>
+      </div>
+      <div style="padding:12px 14px;">
+        <div style="display:flex; flex-direction:column; gap:6px;">
+          <div style="background:rgba(0,0,0,0.3); border-radius:8px; padding:8px 12px;">
+            <div style="font-size:15px; font-weight:600; color:#6ee7b7; margin-bottom:4px;">L1: 硬性过滤</div>
+            <div style="font-size:14px; color:#9ca3af;">完整性、商品存在性、BG SSIM &gt; 0.85</div>
+          </div>
+          <div style="background:rgba(0,0,0,0.3); border-radius:8px; padding:8px 12px;">
+            <div style="font-size:15px; font-weight:600; color:#6ee7b7; margin-bottom:4px;">L2: 软性评分</div>
+            <div style="font-size:14px; color:#9ca3af;">CLIP-I / DINO-I / 时序一致性 / MUSIQ</div>
+          </div>
+          <div style="background:rgba(0,0,0,0.3); border-radius:8px; padding:8px 12px;">
+            <div style="font-size:15px; font-weight:600; color:#6ee7b7; margin-bottom:4px;">L3: VLM + 人工</div>
+            <div style="font-size:14px; color:#9ca3af;">Qwen2-VL 多维评分 + 10% 人工抽检</div>
+          </div>
+        </div>
+        <div style="margin-top:8px; text-align:center; font-size:15px; color:#34d399; font-weight:600;">&#8595; 20K+ 高质量训练对</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Bottom data format bar -->
+  <div style="margin-top:14px; background:rgba(255,255,255,0.025); border:1px solid rgba(255,255,255,0.06); border-radius:10px; padding:10px 20px; display:flex; align-items:center; justify-content:center; gap:20px;">
+    <div style="font-size:16px; color:#6b7280; font-weight:600;">每条训练数据包含:</div>
+    <span style="padding:6px 16px; background:rgba(59,130,246,0.1); border-radius:8px; font-size:15px; color:#93c5fd; font-weight:600;">source_video</span>
+    <span style="padding:6px 16px; background:rgba(139,92,246,0.1); border-radius:8px; font-size:15px; color:#c4b5fd; font-weight:600;">target_image</span>
+    <span style="padding:6px 16px; background:rgba(245,158,11,0.1); border-radius:8px; font-size:15px; color:#fcd34d; font-weight:600;">edited_video (GT)</span>
+    <span style="padding:6px 16px; background:rgba(16,185,129,0.1); border-radius:8px; font-size:15px; color:#6ee7b7; font-weight:600;">mask</span>
+    <span style="padding:6px 16px; background:rgba(236,72,153,0.1); border-radius:8px; font-size:15px; color:#f9a8d4; font-weight:600;">caption</span>
+  </div>
+  <div class="slide-num">05 / 08</div>
+</div>
+
+<!-- ═══════════════════════════════════════════════ -->
+<!-- SLIDE 6  MODEL TRAINING DETAIL                 -->
+<!-- ═══════════════════════════════════════════════ -->
+<div class="slide" style="background:#000000; border:1px solid rgba(255,255,255,0.05);">
+  <div class="sec-label">03-B &mdash; Model Training</div>
+  <div class="sec-title" style="margin-bottom:2px;">阶段二：Teacher Model 训练</div>
+  <div class="sec-desc" style="margin-bottom:8px;">改造 Wan2.1 / 2.2 架构，LoRA 微调训练 PVTT 专用模型</div>
+
+  <div style="display:flex; gap:18px; margin-top:6px;">
+
+    <!-- Left: Architecture diagram -->
+    <div style="flex:1.15;">
+      <div style="background:rgba(139,92,246,0.04); border:1px solid rgba(139,92,246,0.18); border-radius:12px; padding:12px 14px; height:100%;">
+        <div style="font-size:17px; font-weight:700; margin-bottom:8px; color:#c4b5fd;">&#9881; 架构改造示意</div>
+
+        <!-- Input conditions -->
+        <div style="display:flex; gap:6px; margin-bottom:6px;">
+          <div style="flex:1; background:rgba(0,0,0,0.3); border-radius:8px; padding:7px 8px; text-align:center; border:1px solid rgba(59,130,246,0.2);">
+            <div style="font-size:13px; color:#60a5fa; font-weight:600; letter-spacing:1px;">INPUT 1</div>
+            <div style="font-size:16px; font-weight:700; margin-top:2px;">Source Video</div>
+          </div>
+          <div style="flex:1; background:rgba(0,0,0,0.3); border-radius:8px; padding:7px 8px; text-align:center; border:1px solid rgba(16,185,129,0.2);">
+            <div style="font-size:13px; color:#34d399; font-weight:600; letter-spacing:1px;">INPUT 2</div>
+            <div style="font-size:16px; font-weight:700; margin-top:2px;">Reference Image</div>
+          </div>
+        </div>
+
+        <div style="text-align:center; font-size:14px; color:#374151; margin:2px 0;">&#9660;</div>
+
+        <!-- DiT Backbone -->
+        <div style="background:linear-gradient(135deg, rgba(139,92,246,0.12), rgba(139,92,246,0.04)); border:1.5px solid rgba(139,92,246,0.3); border-radius:10px; padding:10px 12px;">
+          <div style="text-align:center; font-size:16px; font-weight:800; color:#c4b5fd; margin-bottom:8px;">Wan2.1 / 2.2  DiT Backbone</div>
+          <div style="display:flex; flex-direction:column; gap:3px;">
+            <div style="background:rgba(0,0,0,0.3); border-radius:5px; padding:5px 10px; display:flex; justify-content:space-between; align-items:center;">
+              <span style="font-size:15px; font-weight:600;">Spatial Self-Attention</span>
+              <span style="font-size:13px; color:#6b7280; background:rgba(255,255,255,0.06); padding:2px 8px; border-radius:4px;">Frozen</span>
+            </div>
+            <div style="background:rgba(139,92,246,0.12); border:1px solid rgba(139,92,246,0.3); border-radius:5px; padding:5px 10px; display:flex; justify-content:space-between; align-items:center;">
+              <span style="font-size:15px; font-weight:600;">Temporal Self-Attention</span>
+              <span style="font-size:13px; color:#c4b5fd; background:rgba(139,92,246,0.25); padding:2px 8px; border-radius:4px; font-weight:700;">+ LoRA</span>
+            </div>
+            <div style="background:rgba(139,92,246,0.12); border:1px solid rgba(139,92,246,0.3); border-radius:5px; padding:5px 10px; display:flex; justify-content:space-between; align-items:center;">
+              <span style="font-size:15px; font-weight:600;">Cross-Attention</span>
+              <span style="font-size:13px; color:#c4b5fd; background:rgba(139,92,246,0.25); padding:2px 8px; border-radius:4px; font-weight:700;">+ LoRA</span>
+            </div>
+            <div style="background:rgba(0,0,0,0.3); border-radius:5px; padding:5px 10px; display:flex; justify-content:space-between; align-items:center;">
+              <span style="font-size:15px; font-weight:600;">Feed-Forward Network</span>
+              <span style="font-size:13px; color:#6b7280; background:rgba(255,255,255,0.06); padding:2px 8px; border-radius:4px;">Frozen</span>
+            </div>
+          </div>
+          <div style="text-align:center; margin-top:6px; font-size:13px; color:#71717a;">&times; N layers</div>
+        </div>
+
+        <div style="text-align:center; font-size:14px; color:#374151; margin:2px 0;">&#9660;</div>
+        <div style="background:rgba(16,185,129,0.08); border:1px solid rgba(16,185,129,0.2); border-radius:8px; padding:8px; text-align:center;">
+          <div style="font-size:16px; font-weight:700; color:#6ee7b7;">&#10148; Edited Video Output</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Right: Training strategy + metrics -->
+    <div style="flex:0.85; display:flex; flex-direction:column; gap:8px;">
+
+      <!-- Training phases -->
+      <div style="background:rgba(255,255,255,0.025); border:1px solid rgba(255,255,255,0.06); border-radius:12px; padding:12px 14px;">
+        <div style="font-size:17px; font-weight:700; margin-bottom:8px;">&#9654; 渐进训练策略</div>
+        <div style="display:flex; flex-direction:column; gap:4px;">
+          <div style="display:flex; align-items:center; gap:8px;">
+            <div style="width:68px; text-align:center; padding:4px 0; background:rgba(139,92,246,0.12); border:1px solid rgba(139,92,246,0.25); border-radius:6px; font-size:14px; font-weight:700; color:#c4b5fd;">Phase 1</div>
+            <div>
+              <div style="font-size:16px; font-weight:600;">1.3B + LoRA (rank 64)</div>
+              <div style="font-size:14px; color:#71717a;">480p, 16 帧, 5K 数据 &mdash; 快速验证</div>
+            </div>
+          </div>
+          <div style="display:flex; align-items:center; gap:8px;">
+            <div style="width:68px; text-align:center; padding:4px 0; background:rgba(139,92,246,0.12); border:1px solid rgba(139,92,246,0.25); border-radius:6px; font-size:14px; font-weight:700; color:#c4b5fd;">Phase 2</div>
+            <div>
+              <div style="font-size:16px; font-weight:600;">14B + LoRA (rank 256)</div>
+              <div style="font-size:14px; color:#71717a;">720p, 24 帧, 20K 数据 &mdash; 规模化训练</div>
+            </div>
+          </div>
+          <div style="display:flex; align-items:center; gap:8px;">
+            <div style="width:68px; text-align:center; padding:4px 0; background:rgba(139,92,246,0.12); border:1px solid rgba(139,92,246,0.25); border-radius:6px; font-size:14px; font-weight:700; color:#c4b5fd;">Phase 3</div>
+            <div>
+              <div style="font-size:16px; font-weight:600;">14B + Partial / Full FT</div>
+              <div style="font-size:14px; color:#71717a;">解冻更多层, 精细调优 &mdash; 最终模型</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Target metrics -->
+      <div style="background:rgba(255,255,255,0.025); border:1px solid rgba(255,255,255,0.06); border-radius:12px; padding:12px 14px; flex:1;">
+        <div style="font-size:17px; font-weight:700; margin-bottom:8px;">&#9733; 目标指标</div>
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:6px;">
+          <div style="background:rgba(0,0,0,0.25); border-radius:6px; padding:8px 10px; text-align:center;">
+            <div style="font-size:22px; font-weight:900; color:#6ee7b7;">&gt; 0.85</div>
+            <div style="font-size:14px; color:#71717a; margin-top:2px;">CLIP-I</div>
+          </div>
+          <div style="background:rgba(0,0,0,0.25); border-radius:6px; padding:8px 10px; text-align:center;">
+            <div style="font-size:22px; font-weight:900; color:#93c5fd;">&lt; 100</div>
+            <div style="font-size:14px; color:#71717a; margin-top:2px;">FVD</div>
+          </div>
+          <div style="background:rgba(0,0,0,0.25); border-radius:6px; padding:8px 10px; text-align:center;">
+            <div style="font-size:22px; font-weight:900; color:#fcd34d;">&gt; 0.90</div>
+            <div style="font-size:14px; color:#71717a; margin-top:2px;">时序一致性</div>
+          </div>
+          <div style="background:rgba(0,0,0,0.25); border-radius:6px; padding:8px 10px; text-align:center;">
+            <div style="font-size:22px; font-weight:900; color:#f9a8d4;">&gt; 30dB</div>
+            <div style="font-size:14px; color:#71717a; margin-top:2px;">BG PSNR</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Framework -->
+      <div style="background:rgba(0,0,0,0.2); border:1px solid rgba(255,255,255,0.06); border-radius:8px; padding:8px 12px; display:flex; align-items:center; gap:10px; justify-content:center;">
+        <span style="font-size:14px; color:#71717a;">训练框架:</span>
+        <span style="padding:4px 12px; background:rgba(139,92,246,0.12); border-radius:5px; font-size:14px; font-weight:600; color:#c4b5fd;">DiffSynth-Studio</span>
+        <span style="padding:4px 12px; background:rgba(59,130,246,0.12); border-radius:5px; font-size:14px; font-weight:600; color:#93c5fd;">DeepSpeed ZeRO-2/3</span>
+        <span style="padding:4px 12px; background:rgba(245,158,11,0.12); border-radius:5px; font-size:14px; font-weight:600; color:#fcd34d;">Wandb</span>
+      </div>
+    </div>
+  </div>
+  <div class="slide-num">06 / 08</div>
+</div>
+
+<!-- ═══════════════════════════════════════════════ -->
+<!-- SLIDE 7  DMD DISTILLATION DETAIL               -->
+<!-- ═══════════════════════════════════════════════ -->
+<div class="slide" style="background:#000000; border:1px solid rgba(255,255,255,0.05);">
+  <div class="sec-label">03-C &mdash; DMD Acceleration</div>
+  <div class="sec-title" style="margin-bottom:2px;">阶段三：DMD 蒸馏加速</div>
+  <div class="sec-desc" style="margin-bottom:8px;">Distribution Matching Distillation &mdash; 50 步压缩至 4 步，加速 4-8&times;</div>
+
+  <div style="display:flex; gap:18px; margin-top:6px;">
+
+    <!-- Left: DMD principle diagram -->
+    <div style="flex:1.1;">
+      <!-- DMD core diagram -->
+      <div style="background:rgba(236,72,153,0.04); border:1px solid rgba(236,72,153,0.18); border-radius:12px; padding:12px 14px; margin-bottom:10px;">
+        <div style="font-size:17px; font-weight:700; margin-bottom:8px; color:#f9a8d4;">&#9889; DMD 核心原理</div>
+
+        <div style="display:flex; gap:10px; align-items:center; margin-bottom:10px;">
+          <!-- Teacher -->
+          <div style="flex:1; background:rgba(0,0,0,0.3); border-radius:10px; padding:8px 8px; text-align:center;">
+            <div style="font-size:14px; font-weight:700; color:#f9a8d4; margin-bottom:4px;">Teacher Model</div>
+            <div style="font-size:26px; font-weight:900; color:#ec4899;">50 步</div>
+            <div style="font-size:13px; color:#71717a; margin-top:3px;">~120s / video · 高质量</div>
+          </div>
+
+          <!-- Arrow + Distillation -->
+          <div style="text-align:center; flex:0 0 auto;">
+            <div style="font-size:14px; color:#f9a8d4; font-weight:700;">DMD</div>
+            <div style="font-size:34px; color:#ec4899;">&#10230;</div>
+            <div style="font-size:13px; color:#71717a;">分布匹配</div>
+          </div>
+
+          <!-- Student -->
+          <div style="flex:1; background:rgba(16,185,129,0.08); border:1px solid rgba(16,185,129,0.2); border-radius:10px; padding:8px 8px; text-align:center;">
+            <div style="font-size:14px; font-weight:700; color:#6ee7b7; margin-bottom:4px;">Student Model</div>
+            <div style="font-size:26px; font-weight:900; color:#10b981;">4 步</div>
+            <div style="font-size:13px; color:#71717a; margin-top:3px;">~15-30s · 损失 &lt; 5%</div>
+          </div>
+        </div>
+
+        <!-- Discriminator -->
+        <div style="background:rgba(245,158,11,0.06); border:1px solid rgba(245,158,11,0.15); border-radius:8px; padding:7px 10px; display:flex; align-items:center; gap:8px;">
+          <div style="width:30px; height:30px; background:rgba(245,158,11,0.15); border-radius:6px; display:flex; align-items:center; justify-content:center; font-size:16px; font-weight:900; color:#fbbf24; flex-shrink:0;">D</div>
+          <div>
+            <div style="font-size:14px; font-weight:600; color:#fcd34d;">3D Video Discriminator</div>
+            <div style="font-size:13px; color:#9ca3af;">判别 Teacher vs Student，驱动分布对齐 (3D Conv / CLIP + Temporal Transformer)</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Progressive distillation -->
+      <div style="background:rgba(255,255,255,0.025); border:1px solid rgba(255,255,255,0.06); border-radius:12px; padding:12px 14px;">
+        <div style="font-size:17px; font-weight:700; margin-bottom:8px;">&#10140; 渐进式蒸馏路线</div>
+        <div style="display:flex; align-items:center; gap:0; justify-content:center;">
+          <div style="text-align:center; padding:8px 16px; background:rgba(236,72,153,0.08); border:1px solid rgba(236,72,153,0.2); border-radius:10px;">
+            <div style="font-size:22px; font-weight:900; color:#ec4899;">50</div>
+            <div style="font-size:13px; color:#71717a;">steps</div>
+          </div>
+          <div style="padding:0 8px; color:#374151; font-size:22px;">&rarr;</div>
+          <div style="text-align:center; padding:8px 16px; background:rgba(139,92,246,0.08); border:1px solid rgba(139,92,246,0.2); border-radius:10px;">
+            <div style="font-size:22px; font-weight:900; color:#a78bfa;">16</div>
+            <div style="font-size:13px; color:#71717a;">steps</div>
+          </div>
+          <div style="padding:0 8px; color:#374151; font-size:22px;">&rarr;</div>
+          <div style="text-align:center; padding:8px 16px; background:rgba(59,130,246,0.08); border:1px solid rgba(59,130,246,0.2); border-radius:10px;">
+            <div style="font-size:22px; font-weight:900; color:#60a5fa;">8</div>
+            <div style="font-size:13px; color:#71717a;">steps</div>
+          </div>
+          <div style="padding:0 8px; color:#374151; font-size:22px;">&rarr;</div>
+          <div style="text-align:center; padding:10px 18px; background:rgba(16,185,129,0.12); border:2px solid rgba(16,185,129,0.3); border-radius:10px;">
+            <div style="font-size:24px; font-weight:900; color:#10b981;">4</div>
+            <div style="font-size:13px; color:#71717a;">steps</div>
+          </div>
+        </div>
+        <div style="text-align:center; margin-top:8px; font-size:14px; color:#71717a;">每阶段约 20K 训练步，逐步收紧质量门槛</div>
+      </div>
+    </div>
+
+    <!-- Right: Loss + Engineering -->
+    <div style="flex:0.9; display:flex; flex-direction:column; gap:8px;">
+
+      <!-- Loss function breakdown -->
+      <div style="background:rgba(255,255,255,0.025); border:1px solid rgba(255,255,255,0.06); border-radius:12px; padding:12px 14px;">
+        <div style="font-size:17px; font-weight:700; margin-bottom:8px;">&#9874; Loss 函数组成</div>
+        <div style="display:flex; flex-direction:column; gap:3px;">
+          <div style="background:rgba(236,72,153,0.06); border:1px solid rgba(236,72,153,0.15); border-radius:6px; padding:6px 10px; display:flex; justify-content:space-between; align-items:center;">
+            <span style="font-size:14px; font-weight:600;">Distribution Loss</span>
+            <span style="font-size:13px; color:#f9a8d4; background:rgba(236,72,153,0.15); padding:2px 8px; border-radius:4px;">对抗训练</span>
+          </div>
+          <div style="background:rgba(59,130,246,0.06); border:1px solid rgba(59,130,246,0.15); border-radius:6px; padding:6px 10px; display:flex; justify-content:space-between; align-items:center;">
+            <span style="font-size:14px; font-weight:600;">Regression Loss</span>
+            <span style="font-size:13px; color:#93c5fd; background:rgba(59,130,246,0.15); padding:2px 8px; border-radius:4px;">MSE + LPIPS</span>
+          </div>
+          <div style="background:rgba(245,158,11,0.06); border:1px solid rgba(245,158,11,0.15); border-radius:6px; padding:6px 10px; display:flex; justify-content:space-between; align-items:center;">
+            <span style="font-size:14px; font-weight:600;">Temporal Loss</span>
+            <span style="font-size:13px; color:#fcd34d; background:rgba(245,158,11,0.15); padding:2px 8px; border-radius:4px;">帧间一致性</span>
+          </div>
+          <div style="background:rgba(16,185,129,0.06); border:1px solid rgba(16,185,129,0.15); border-radius:6px; padding:6px 10px; display:flex; justify-content:space-between; align-items:center;">
+            <span style="font-size:14px; font-weight:600;">Background Loss</span>
+            <span style="font-size:13px; color:#6ee7b7; background:rgba(16,185,129,0.15); padding:2px 8px; border-radius:4px;">BG 保持</span>
+          </div>
+          <div style="background:rgba(139,92,246,0.06); border:1px solid rgba(139,92,246,0.15); border-radius:6px; padding:6px 10px; display:flex; justify-content:space-between; align-items:center;">
+            <span style="font-size:14px; font-weight:600;">Identity Loss</span>
+            <span style="font-size:13px; color:#c4b5fd; background:rgba(139,92,246,0.15); padding:2px 8px; border-radius:4px;">CLIP 保真度</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Engineering acceleration -->
+      <div style="background:rgba(255,255,255,0.025); border:1px solid rgba(255,255,255,0.06); border-radius:12px; padding:12px 14px; flex:1;">
+        <div style="font-size:17px; font-weight:700; margin-bottom:8px;">&#9889; 辅助工程加速</div>
+        <div style="display:flex; flex-direction:column; gap:4px;">
+          <div style="display:flex; align-items:center; gap:8px; padding:6px 10px; background:rgba(0,0,0,0.2); border-radius:6px;">
+            <span style="font-size:18px;">&#9889;</span>
+            <div>
+              <div style="font-size:14px; font-weight:600;">Flash Attention 2</div>
+              <div style="font-size:13px; color:#71717a;">注意力计算加速 2-4&times;</div>
+            </div>
+          </div>
+          <div style="display:flex; align-items:center; gap:8px; padding:6px 10px; background:rgba(0,0,0,0.2); border-radius:6px;">
+            <span style="font-size:18px;">&#9878;</span>
+            <div>
+              <div style="font-size:14px; font-weight:600;">INT8 / FP8 量化</div>
+              <div style="font-size:13px; color:#71717a;">显存降低 ~40%, 速度提升 ~30%</div>
+            </div>
+          </div>
+          <div style="display:flex; align-items:center; gap:8px; padding:6px 10px; background:rgba(0,0,0,0.2); border-radius:6px;">
+            <span style="font-size:18px;">&#9881;</span>
+            <div>
+              <div style="font-size:14px; font-weight:600;">torch.compile</div>
+              <div style="font-size:13px; color:#71717a;">图编译优化, 额外加速 10-20%</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="slide-num">07 / 08</div>
+</div>
+
+<!-- ═══════════════════════════════════════════════ -->
+<!-- SLIDE 8  TEAM                                  -->
+<!-- ═══════════════════════════════════════════════ -->
+<div class="slide s-team">
+  <div class="sec-label">04 &mdash; Team</div>
+  <div class="sec-title">团队结构与分工</div>
+  <div class="sec-desc" style="margin-bottom:14px;">10 人团队，采用 3-3-4 模块化分配</div>
+
+  <div class="trow" style="margin-top:10px;">
+    <!-- M1 -->
+    <div class="tmod td">
+      <div class="th"><span class="tb">TASK 1</span><h3>数据集构建</h3></div>
+      <div class="ppl">
+        <div class="pp">
+          <div class="av">王</div>
+          <div class="nm">王洁怡</div>
+          <div class="rl">数据采集<br>镜头切割</div>
+        </div>
+        <div class="pp">
+          <div class="av">刘</div>
+          <div class="nm">刘麓琰</div>
+          <div class="rl">商品分割<br>背景修复</div>
+        </div>
+        <div class="pp">
+          <div class="av">王</div>
+          <div class="nm">王志铭</div>
+          <div class="rl">视频合成<br>质量过滤</div>
+        </div>
+      </div>
+      <div class="tl">
+        <div class="ti"><span class="dt"></span>视频采集 + PySceneDetect 切割</div>
+        <div class="ti"><span class="dt"></span>SAM2 分割 + VideoPainter 修复</div>
+        <div class="ti"><span class="dt"></span>VideoAnyDoor 合成 + 多级过滤</div>
+      </div>
+    </div>
+
+    <!-- M2 -->
+    <div class="tmod tm">
+      <div class="th"><span class="tb">TASK 2</span><h3>模型训练</h3></div>
+      <div class="ppl">
+        <div class="pp">
+          <div class="av">钟</div>
+          <div class="nm">钟蕊</div>
+          <div class="rl">架构改造<br>条件注入</div>
+        </div>
+        <div class="pp">
+          <div class="av">肖</div>
+          <div class="nm">肖泓锐</div>
+          <div class="rl">LoRA 微调<br>渐进训练</div>
+        </div>
+        <div class="pp">
+          <div class="av">方</div>
+          <div class="nm">方子维</div>
+          <div class="rl">评测体系<br>训练框架</div>
+        </div>
+      </div>
+      <div class="tl">
+        <div class="ti"><span class="dt"></span>Wan2.1/2.2 架构改造 + Ref 注入</div>
+        <div class="ti"><span class="dt"></span>LoRA 微调 + 1.3B &rarr; 14B 渐进</div>
+        <div class="ti"><span class="dt"></span>DiffSynth + DeepSpeed 训练框架</div>
+      </div>
+    </div>
+
+    <!-- M3 -->
+    <div class="tmod ta">
+      <div class="th"><span class="tb">TASK 3</span><h3>DMD 蒸馏加速</h3></div>
+      <div class="ppl">
+        <div class="pp">
+          <div class="av">李</div>
+          <div class="nm">李一佳</div>
+          <div class="rl">DMD 蒸馏<br>Loss 设计</div>
+        </div>
+        <div class="pp">
+          <div class="av">陈</div>
+          <div class="nm">陈庆展</div>
+          <div class="rl">渐进压缩<br>Discriminator</div>
+        </div>
+        <div class="pp">
+          <div class="av">S</div>
+          <div class="nm">Sze Long</div>
+          <div class="rl">工程加速<br>量化部署</div>
+        </div>
+        <div class="pp">
+          <div class="av">邱</div>
+          <div class="nm">邱张西子</div>
+          <div class="rl">Mean Flow<br>视频生成探索</div>
+        </div>
+      </div>
+      <div class="tl">
+        <div class="ti"><span class="dt"></span>DMD + 50 &rarr; 4 步渐进蒸馏</div>
+        <div class="ti"><span class="dt"></span>Flash Attn / INT8 / torch.compile</div>
+        <div class="ti"><span class="dt"></span>Mean Flow 方法在视频生成上的探索</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="tsum" style="margin-top:12px; padding:12px 24px;">
+    <div class="si"><div class="sv">10</div><div class="sl">团队成员</div></div>
+    <div class="sd"></div>
+    <div class="si"><div class="sv">3-3-4</div><div class="sl">模块化分配</div></div>
+    <div class="sd"></div>
+    <div class="si"><div class="sv">3</div><div class="sl">核心模块</div></div>
+    <div class="sd"></div>
+    <div class="si"><div class="sv">16 周</div><div class="sl">预计周期</div></div>
+  </div>
+  <div class="slide-num">08 / 08</div>
+</div>
+
+</body>
+</html>
