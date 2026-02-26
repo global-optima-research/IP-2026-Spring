@@ -1,7 +1,7 @@
 # Week 2 工作汇报：基于 SAM2 与 Grounded-SAM2 的目标分割复现
 
 **负责人**: LLY (Liu Luyan)
-**时间**: 2026 Spring - Week 2
+**时间**: 2026 Spring - Week 2 
 **所属模块**: 01-dataset-construction (数据集构建)
 
 ---
@@ -14,26 +14,26 @@
 
 本项目文件组织如下，分为数据源、Grounded-SAM2 实验与 SAM2 实验三部分：
 
-### 📂 数据准备 (`demo_dataset/`)
+### 数据准备 (`demo_dataset/`)
 存放用于测试的原始素材，包含不同类别的电商场景：
 - **`images/`**: 单帧测试图片（如车辆、杂货等）。
 - **`videos/`**: 视频测试片段（如 bunny 视频）。
 
-### 🚀 核心实验一：Grounded-SAM2 (`gsam2/`)
+### 核心实验一：Grounded-SAM2 (`gsam2/`)
 *结合 Grounding DINO 与 SAM2，实现通过文本提示（Text Prompt）自动分割目标，是本项目自动化的关键。*
 
 - **代码文件**:
   - `gsam2img.ipynb`: **[图片推理]** 输入文本（如 "truck"），输出分割 Mask。
   - `gsam2video.ipynb`: **[视频推理]** 输入首帧文本提示，利用 SAM2 在视频中跟踪分割对象。
 - **实验结果**:
-  - 📂 `image_results/`: 图片分割结果展示。
+  - `image_results/`: 图片分割结果展示。
     - `fixed_bai.jpg`, `fixed_bunny.png`: 针对不同物体的分割测试。
     - `fixed_cars.jpg`, `fixed_truck.jpg`: 复杂背景下的车辆分割。
-  - 📂 `videos_results/`: 视频分割结果展示。
+  - `videos_results/`: 视频分割结果展示。
     - `bunny_result.mp4`: 原始 Mask 叠加视频。
     - `bunny_result_bbox.mp4`: 包含检测框 (Bounding Box) 的可视化视频。
 
-### 🧪 对照实验二：SAM2 原生复现 (`sam2/`)
+### 对照实验二：SAM2 原生复现 (`sam2/`)
 *使用官方原生代码进行复现，主要测试点提示（Point Prompt）的交互效果。*
 
 - `image_predictor_example.ipynb`: 单张图片的交互式分割复现。
