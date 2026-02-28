@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(ls:*)",
+      "Bash(ssh:*)",
+      "Bash(powershell.exe:*)",
+      "Bash(curl:*)",
+      "Bash(scp:*)",
+      "Bash(tar czf:*)"
+    ]
+  }
+}

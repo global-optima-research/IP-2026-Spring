@@ -145,3 +145,18 @@ dmypy.json
 outputs/
 
 .idea/
+
+# Claude Code
+.claude/
+
+# Windows junk
+NUL
+
+# Extracted frames (re-extract from video)
+notebooks/videos/bunny_frames/
+
+# Model checkpoints (download scripts are kept)
+bert-base-uncased/
+
+# Results output dir (re-generate from scripts)
+notebooks/videos/bunny_tracking_results/
