@@ -1,1 +1,0 @@
-# Gradio Demo for VideoPainter
