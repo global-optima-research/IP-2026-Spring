@@ -141,25 +141,122 @@ config.dataloader_train.datatags = ["WDS:/path/to/your/shards"]
 ## Task 3: ECT Reproduction
 
 ### Goal
-Reproduce Enhanced Consistency Training on Wan2.1-1.3B.
+Reproduce ECT (Enhanced Consistency Training) on Wan2.1-1.3B.
 
-### Steps
-- [ ] Locate ECT config in FastGen
-- [ ] Adapt for single GPU
-- [ ] Launch ECT training
+### Approach: Custom WanT2V CM Config (Route 1)
+
+**Problem:** FastGen has no WanT2V config for CM/ECT. Only EDM/EDM2 configs exist.
+
+**Solution:** Created custom `config_cm_ct.py` by combining:
+- **Method logic:** `fastgen/methods/consistency_model/CM.py` (use_cd=False for ECT)
+- **EDM2 CM reference:** `EDM2/config_cm_s.py` (CTSchedule, EMA, loss params)
+- **Wan adaptation:** `WanT2V/config_mf.py` (same consistency family, time sampling params)
+
+### How CM/ECT/CD Works in FastGen
+
+```python
+# CM.py — single_train_step() core logic:
+#
+# 1. Sample t from time distribution
+# 2. Add noise: y_t = noise_scheduler.forward_process(data, eps, t)
+# 3. Compute r from t using sigmoid mapping (ECT paper):
+#    r = t - t * (1 - ratio) * (1 + 8 * sigmoid(-t))
+# 4. Target:
+#    - ECT (use_cd=False): y_r = noise_scheduler.forward_process(data, eps, r)
+#    - CD  (use_cd=True):  y_r = ode_solver(teacher, y_t, t, r)  # Teacher ODE step
+# 5. Loss = ||net(y_t, t) - net(y_r, r)||^2  (consistency constraint)
+# 6. CTScheduleCallback controls `ratio` curriculum (increases over training)
+```
+
+### Key Config Design Decisions
+
+| Parameter | Value | Source / Reasoning |
+|-----------|-------|--------------------|
+| `use_cd` | False | ECT = Consistency Training (no teacher) |
+| `time_dist_type` | logitnormal | From MeanFlow WanT2V (flow matching) |
+| `train_p_mean` / `train_p_std` | -0.8 / 1.6 | From MeanFlow WanT2V |
+| `huber_const` | 0.06 | From EDM2 CM config |
+| `weighting_ct_loss` | "default" (1/(t-r)) | Standard CM loss weighting |
+| `EMA type` | power (gamma=96.99) | From MeanFlow WanT2V |
+| `optimizer` | AdamW, lr=1e-5 | From MeanFlow WanT2V |
+| `kimg_per_stage` | 50 | Scaled for batch_size=8, max_iter=6000 |
+| `q` | 4 | From EDM2 CM config (controls curriculum speed) |
+| Data format | mp4+txt (VideoLoader) | **Same as DMD2** — shared dataset |
+
+### Validation Strategy
+1. Run 100-200 step sanity check — verify loss decreases, no NaN
+2. Cross-reference with distill_wan2.1 (azuresky03) if results seem off
+3. Compare loss curve shape with published ECT results on EDM2
+
+### Setup Status
+- [x] Config created: `config_cm_ct.py` → uploaded to `FastGen/fastgen/configs/experiments/WanT2V/`
+- [x] Training script: `run_ect_single_gpu.sh` → uploaded to server
+- [ ] Prepare training data (WebDataset shards, shared with DMD2)
+- [ ] Run sanity check (100-200 steps)
+- [ ] Launch full ECT training
 - [ ] Record convergence speed & quality
 
 ---
 
-## Task 4: Consistency Distillation Reproduction
+## Task 4: Consistency Distillation (CD) Reproduction
 
 ### Goal
-Reproduce Consistency Distillation as baseline.
+Reproduce Consistency Distillation on Wan2.1-1.3B.
 
-### Steps
-- [ ] Locate CD config in FastGen
-- [ ] Adapt for single GPU
-- [ ] Launch CD training
+### Approach
+Same as Task 3 but with `use_cd=True` — uses Teacher model for ODE-based target.
+
+### Key Differences from ECT
+| | ECT (config_cm_ct.py) | CD (config_cm_cd.py) |
+|--|---|---|
+| `use_cd` | False | True |
+| Teacher | Not needed | Required (Wan2.1-1.3B loaded as teacher) |
+| Target y_r | `forward_process(data, eps, r)` | `ode_solver(teacher, y_t, t, r)` |
+| `guidance_scale` | N/A | 5.0 (CFG for teacher) |
+| VRAM usage | Lower (no teacher) | Higher (teacher + student) |
+
+### Setup Status
+- [x] Config created: `config_cm_cd.py` → uploaded to `FastGen/fastgen/configs/experiments/WanT2V/`
+- [x] Training script: `run_cd_single_gpu.sh` → uploaded to server
+- [ ] Prepare training data (WebDataset shards, shared with DMD2 and ECT)
+- [ ] Run sanity check (100-200 steps)
+- [ ] Launch full CD training
+- [ ] Record convergence speed & quality
+
+---
+
+## Additional Methods (Bonus Comparison)
+
+### f-distill & LADD (Ready-made WanT2V configs)
+
+These are additional distribution matching methods with **existing** WanT2V configs.
+They share the same mp4+txt data format as DMD2/ECT/CD.
+
+| Method | Config | Description | Script |
+|--------|--------|-------------|--------|
+| f-distill | `config_fdistill.py` (built-in) | f-divergence weighted DMD2 | `run_fdistill_single_gpu.sh` |
+| LADD | `config_ladd.py` (built-in) | Pure adversarial distillation | `run_ladd_single_gpu.sh` |
+| MeanFlow | `config_mf.py` (built-in) | Consistency family, pre-computed latents | `run_meanflow_single_gpu.sh` |
+
+### Data Format Groups
+
+```
+Group A: VideoLoaderConfig (mp4 + txt WebDataset shards)
+  → DMD2, ECT, CD, f-distill, LADD
+  → One dataset serves ALL five methods ← KEY ADVANTAGE
+
+Group B: VideoLatentLoaderConfig (pre-computed latent.pth + txt_emb.pth)
+  → MeanFlow
+  → Requires extra pre-processing step
+```
+
+### Setup Status
+- [x] f-distill training script created and uploaded
+- [x] LADD training script created and uploaded
+- [x] MeanFlow training script created and uploaded
+- [ ] Pre-compute VAE latents + text embeddings from training videos
+- [ ] Prepare pre-computed negative prompt embedding (.npy)
+- [ ] Launch MeanFlow training
 - [ ] Record convergence speed & quality
 
 ---
@@ -167,15 +264,15 @@ Reproduce Consistency Distillation as baseline.
 ## Task 5: Method Comparison & Report
 
 ### Comparison Axes
-| Metric | DMD2 | ECT | Consistency |
-|--------|------|-----|-------------|
-| Convergence speed (iterations) | - | - | - |
-| Final FVD | - | - | - |
-| Final CLIP-I | - | - | - |
-| VRAM usage (GB) | - | - | - |
-| Training time (hours) | - | - | - |
-| Inference steps | - | - | - |
-| Generation quality (subjective) | - | - | - |
+| Metric | DMD2 | ECT | CD | f-distill | LADD |
+|--------|------|-----|-----|-----------|------|
+| Convergence speed (iterations) | - | - | - | - | - |
+| Final FVD | - | - | - | - | - |
+| Final CLIP-I | - | - | - | - | - |
+| VRAM usage (GB) | - | - | - | - | - |
+| Training time (hours) | - | - | - | - | - |
+| Inference steps | - | - | - | - | - |
+| Generation quality (subjective) | - | - | - | - | - |
 
 ### Deliverables
 - [ ] Comparison table filled
@@ -205,17 +302,27 @@ Reproduce Consistency Distillation as baseline.
 │   │   │   ├── data.py                  # VideoLoaderConfig / VideoLatentLoaderConfig
 │   │   │   ├── net.py                   # Wan_1_3B_Config (model_id_or_local_path)
 │   │   │   └── experiments/WanT2V/
-│   │   │       ├── config_dmd2.py       # DMD2 config (1.3B)
-│   │   │       ├── config_dmd2_14b.py   # DMD2 config (14B)
-│   │   │       └── ...                  # ECT, MF, SF, SFT, etc.
+│   │   │       ├── config_dmd2.py       # DMD2 config (1.3B, built-in)
+│   │   │       ├── config_fdistill.py   # f-distill config (built-in)
+│   │   │       ├── config_ladd.py       # LADD config (built-in)
+│   │   │       ├── config_mf.py         # MeanFlow config (built-in)
+│   │   │       ├── config_cm_ct.py      # ECT config (CUSTOM, we created)
+│   │   │       ├── config_cm_cd.py      # CD config (CUSTOM, we created)
+│   │   │       └── ...                  # KD, SF, SFT, etc.
 │   │   ├── datasets/
 │   │   │   ├── README.md                # Data preparation guide
 │   │   │   ├── wds_dataloaders.py       # WebDataset loader
 │   │   │   └── decoders.py              # Video decoder
 │   │   └── methods/
-│   │       └── distribution_matching/
-│   │           ├── dmd2.py              # DMD2 method implementation
-│   │           └── README.md            # DMD2 expected results
+│   │       ├── distribution_matching/
+│   │       │   ├── dmd2.py              # DMD2 method
+│   │       │   ├── f_distill.py         # f-distill method
+│   │       │   ├── ladd.py              # LADD method
+│   │       │   └── README.md            # Expected results
+│   │       └── consistency_model/
+│   │           ├── CM.py                # ECT/CD method (use_cd=False/True)
+│   │           ├── mean_flow.py         # MeanFlow method
+│   │           └── README.md            # Expected results
 │   └── scripts/inference/prompts/       # Prompt files for inference
 ├── .cache/huggingface/
 │   └── models--Wan-AI--Wan2.1-T2V-1.3B-Diffusers/   # Model weights
@@ -239,7 +346,12 @@ Reproduce Consistency Distillation as baseline.
 ├── scripts/
 │   ├── download_model.sh               # Model download script
 │   ├── run_inference.sh                 # Inference script
-│   └── run_dmd2_single_gpu.sh          # DMD2 single-GPU training script
+│   ├── run_dmd2_single_gpu.sh          # DMD2 training script
+│   ├── run_ect_single_gpu.sh           # ECT training script (custom config)
+│   ├── run_cd_single_gpu.sh            # CD training script (custom config)
+│   ├── run_fdistill_single_gpu.sh      # f-distill training script
+│   ├── run_ladd_single_gpu.sh          # LADD training script
+│   └── run_meanflow_single_gpu.sh      # MeanFlow training script
 ├── setup.log                            # Setup execution log
 ├── download.log                         # Model download log
 └── inference.log                        # Inference execution log
