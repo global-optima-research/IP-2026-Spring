@@ -23,10 +23,11 @@ echo "Destination: ${DEST}"
 mkdir -p "${DEST}" "${VIDEO_DIR}"
 
 # Step 1: Download CSV metadata (always)
+# NOTE: CSV is under data/train/ subdirectory in the HF repo
 echo ""
 echo "=== Step 1: Downloading CSV metadata ==="
 if [ ! -f "${DEST}/OpenVid-1M.csv" ]; then
-    wget -c -O "${DEST}/OpenVid-1M.csv" "${BASE_URL}/OpenVid-1M.csv"
+    wget -c -O "${DEST}/OpenVid-1M.csv" "${BASE_URL}/data/train/OpenVid-1M.csv"
     echo "CSV downloaded: $(wc -l < "${DEST}/OpenVid-1M.csv") lines"
 else
     echo "CSV already exists, skipping. $(wc -l < "${DEST}/OpenVid-1M.csv") lines"
