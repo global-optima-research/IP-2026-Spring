@@ -12,9 +12,11 @@
 | # | Task | Status | Date |
 |---|------|--------|------|
 | 1 | FastGen 环境搭建 | ✅ Done | 2026-03-05 |
-| 2 | DMD2 复现 (Wan2.1 1.3B) | 🔄 In Progress | - |
-| 3 | ECT 复现 | ⬜ Pending | - |
-| 4 | Consistency Distillation 复现 | ⬜ Pending | - |
+| 1.5 | 五种蒸馏方案配置 & 脚本部署 | ✅ Done | 2026-03-06 |
+| 1.6 | 训练数据准备 (OpenVid-1M → WebDataset) | 🔄 In Progress | 2026-03-07 |
+| 2 | DMD2 复现 (Wan2.1 1.3B) | ⬜ Waiting for data | - |
+| 3 | ECT 复现 | ⬜ Waiting for data | - |
+| 4 | Consistency Distillation 复现 | ⬜ Waiting for data | - |
 | 5 | 多方法对比 & 复现报告 | ⬜ Pending | - |
 
 ---
@@ -120,17 +122,37 @@ with wds.ShardWriter("/path/to/shards/%05d.tar", maxcount=1000) as sink:
 config.dataloader_train.datatags = ["WDS:/path/to/your/shards"]
 ```
 
-### Data Strategy Options
+### Data Strategy — Decision Made (2026-03-06 Meeting)
 
-| Option | Pros | Cons |
-|--------|------|------|
-| A: Use VidProM prompts + 1.3B Teacher to generate data | Simple, follows NVIDIA's approach | 1.3B quality < 14B, takes time to generate |
-| B: Use project's own product video data + captions | Domain-specific, better for PVTT | Need to prepare captions, resize to 480p |
-| C: Download public video dataset (Panda-70M, OpenVid) | Large scale, diverse | Huge download, not product-domain |
+**Meeting conclusion: Use OpenVid-1M as the unified public dataset for Phase 0.**
+
+All team members (4 people) will use the same dataset for reproducibility and fair comparison.
+
+| Option | Pros | Cons | Decision |
+|--------|------|------|----------|
+| A: Use VidProM prompts + 1.3B Teacher to generate data | Simple, follows NVIDIA's approach | 1.3B quality < 14B, takes time to generate | Phase 1+ backup |
+| B: Use project's own product video data + captions | Domain-specific, better for PVTT | Task 1 data Week 8-9 delivery | Phase 1+ |
+| **C: OpenVid-1M (public dataset)** | **Large scale, diverse, immediate availability** | Large download | **✅ Phase 0 chosen** |
+
+### Data Preparation Pipeline
+
+**Dataset:** [OpenVid-1M](https://huggingface.co/datasets/nkp37/OpenVid-1M) (1M+ open-domain video-text pairs)
+**Shared location:** `/data/datasets/OpenVid-1M/` (team-accessible)
+**Target:** ~50,000 samples converted to WebDataset format
+
+Scripts (in `03-dmd-distillation/scripts/`):
+1. `download_openvid.sh` — Download 7 zip parts (~50K videos) + CSV metadata from hf-mirror.com
+2. `convert_to_webdataset.py` — Filter by quality (frames≥81, aesthetic≥5.0, duration≥2s) and pack into tar shards
+3. `prepare_training_data.sh` — One-click pipeline (download → convert → set team permissions)
+
+**Output:** `/data/datasets/OpenVid-1M/webdataset/shard-{000000..NNNNNN}.tar`
+**Config usage:** `dataloader_train.datatags=["WDS:/data/datasets/OpenVid-1M/webdataset/shard-{000000..NNNNNN}.tar"]`
 
 ### Steps
-- [ ] Decide data strategy (A / B / C)
-- [ ] Prepare training data (WebDataset shards)
+- [x] Decide data strategy → **OpenVid-1M** (2026-03-06 meeting)
+- [x] Write download + conversion scripts (2026-03-06)
+- [ ] Upload scripts to server and start download (in progress)
+- [ ] Convert ~50K samples to WebDataset shards
 - [ ] Adapt config for single GPU (nproc=1, adjust batch/accumulation)
 - [ ] Launch DMD2 training
 - [ ] Monitor loss curves (W&B or local logs)

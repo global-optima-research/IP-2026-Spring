@@ -4,7 +4,8 @@
 > **所属任务组:** Task 3 — DMD 蒸馏加速（4人组）
 > **小组 Leader:** 李志颖、Jacky
 > **联系方式:** hcchenab@connect.ust.hk
-> **开发分支:** `phase2-dev-ChenHingChin`
+> **开发分支:** `Task3_dev_ChenHingChin`
+> **独立仓库:** [`global-optima-research/ChenQingzhan-DMD-distillation`](https://github.com/global-optima-research/ChenQingzhan-DMD-distillation)
 > **工作目录:** `03-dmd-distillation/`
 
 ---
@@ -103,7 +104,8 @@ L_total = α · L_DMD           (分布匹配，主损失，α=1.0)
 
 | 时间 | 里程碑 | 验收标准 | 状态 |
 |------|--------|---------|------|
-| Week 1-2 | 环境搭建，阅读 FastGen 代码，跑通推理 | FastGen 推理 pipeline 可运行 | 🔄 进行中 |
+| Week 1-2 | 环境搭建，阅读 FastGen 代码，跑通推理 | FastGen 推理 pipeline 可运行 | ✅ 完成 |
+| Week 2-3 | 训练数据准备 (OpenVid-1M → WebDataset) | 50K 样本 WebDataset shards | 🔄 进行中 |
 | Week 3-4 | 跑通 DMD2 蒸馏训练流程（小规模验证） | 小模型蒸馏 Loss 正常收敛 | ⬜ 待开始 |
 | Week 5-6 | 完成复现报告，全组讨论选定最优 codebase | 报告提交 + 方案确定 | ⬜ 待开始 |
 | Week 8-10 | 3D Video Discriminator 训练完成 | Discriminator loss 稳定 | ⬜ 待开始 |
@@ -118,13 +120,20 @@ L_total = α · L_DMD           (分布匹配，主损失，α=1.0)
 ### Phase 0：复现阶段 (Week 1-6)
 
 - [x] GitHub 分支环境配置 (2026-02-23)
-- [ ] 阅读 NVIDIA FastGen 源码和文档
+- [x] 阅读 NVIDIA FastGen 源码和文档
 - [x] 阅读 Task 3 技术综述 (`03-dmd-distillation/README.md`)
 - [ ] 学习 DMD / DMD2 核心论文 (CVPR 2024 / NeurIPS 2024)
 - [ ] 学习 Progressive Distillation 论文 (ICLR 2022)
-- [ ] 搭建 FastGen 运行环境（GPU 服务器配置、依赖安装）
-- [ ] 下载 Wan2.1 模型权重
-- [ ] 跑通 FastGen 推理 pipeline
+- [x] 搭建 FastGen 运行环境（GPU 服务器配置、依赖安装）(2026-03-05)
+- [x] 下载 Wan2.1 模型权重 (2026-03-05)
+- [x] 跑通 FastGen 推理 pipeline (2026-03-05, 50-step Teacher, 5 videos)
+- [x] 编写五种蒸馏方法的配置和脚本 (2026-03-06, DMD2/ECT/CD/f-distill/LADD)
+- [x] 组会讨论确定训练数据方案：统一使用 OpenVid-1M (2026-03-06)
+- [x] 编写 OpenVid-1M 下载 + WebDataset 转换脚本 (2026-03-06)
+- [x] 创建独立仓库 ChenQingzhan-DMD-distillation (2026-03-06)
+- [ ] 上传脚本到服务器，启动 OpenVid-1M 数据下载 (in progress)
+- [ ] 转换 ~50K 样本为 WebDataset 格式
+- [ ] 推送代码到独立仓库
 - [ ] 使用 FastGen 复现 DMD2 蒸馏训练（小规模验证）
 - [ ] 复现 ECT 方法（对比实验）
 - [ ] 复现 Consistency Distillation 方法（对比实验）
@@ -205,4 +214,4 @@ L_total = α · L_DMD           (分布匹配，主损失，α=1.0)
 
 ---
 
-> **最后更新:** 2026-02-23
+> **最后更新:** 2026-03-07
