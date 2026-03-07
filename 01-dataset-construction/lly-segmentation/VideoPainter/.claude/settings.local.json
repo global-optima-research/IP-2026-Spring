@@ -1,7 +1,10 @@
 {
   "permissions": {
     "allow": [
-      "Bash(ssh:*)"
+      "Bash(ssh:*)",
+      "Bash(ls:*)",
+      "Bash(dir:*)",
+      "Bash(scp:*)"
     ]
   }
 }
