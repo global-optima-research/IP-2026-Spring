@@ -1,14 +1,16 @@
 #!/bin/bash
-# run_dmd2.sh — Run DMD2 distillation on Wan2.1-1.3B with 4-GPU FSDP
+# run_cd_train.sh — Run CD (Consistency Distillation) on Wan2.1-1.3B with 2-GPU FSDP
+# CD: Consistency Distillation with teacher (use_cd=True)
+# Uses GPU 5,7 (2 free GPUs available)
 #
-# DMD2: VSD loss + GAN adversarial training, alternates student/discriminator updates
-# Reference: Yin et al., 2024 (https://arxiv.org/abs/2405.14867)
-#
-# Usage: bash run_dmd2.sh
+# Usage: nohup bash run_cd_train.sh > /data/chenqingzhan/fastgen_output/cd_train.log 2>&1 &
 
 set -euo pipefail
 
-export CUDA_VISIBLE_DEVICES=2,3,4,5
+source /data/chenqingzhan/miniconda3/bin/activate fastgen
+
+export CUDA_VISIBLE_DEVICES=5,7
+export PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
 export FASTGEN_OUTPUT_ROOT="/data/chenqingzhan/fastgen_output"
 export HF_HOME="/data/chenqingzhan/.cache/huggingface"
 export HF_ENDPOINT="https://hf-mirror.com"
@@ -20,9 +22,12 @@ DATA_SHARDS="WDS:/data/datasets/OpenVid-1M/webdataset"
 cd $FASTGEN_DIR
 export PYTHONPATH=$(pwd)
 
-# 4-GPU FSDP: model sharded across GPUs, grad_accum = 8/(1*4) = 2
-torchrun --nproc_per_node=4 --standalone train.py \
-    --config=fastgen/configs/experiments/WanT2V/config_dmd2.py \
+echo "=== CD Training ==="
+echo "GPUs: $CUDA_VISIBLE_DEVICES"
+echo "Start: $(date)"
+
+torchrun --nproc_per_node=2 --standalone train.py \
+    --config=fastgen/configs/experiments/WanT2V/config_cm_cd.py \
     - trainer.ddp=False \
       trainer.fsdp=True \
       trainer.batch_size_global=8 \
@@ -33,4 +38,7 @@ torchrun --nproc_per_node=4 --standalone train.py \
       model.net.model_id_or_local_path=$MODEL_PATH \
       dataloader_train.datatags="[\"$DATA_SHARDS\"]" \
       log_config.wandb_mode=disabled \
-      log_config.name=dmd2_wan1.3b_4gpu
+      log_config.name=cd_wan1.3b_2gpu
+
+echo "=== CD Training complete ==="
+echo "End: $(date)"

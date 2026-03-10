@@ -65,7 +65,7 @@ def load_and_filter_csv(
             # Quality filters
             try:
                 frames = int(row.get("frame", 0))
-                aesthetic = float(row.get("aesthetic_score", 0))
+                aesthetic = float(row.get("aesthetic score", 0))
                 seconds = float(row.get("seconds", 0))
             except (ValueError, TypeError):
                 skipped_filter += 1
