@@ -20,11 +20,12 @@
 | 3 | ECT 复现 | ✅ Done — 6000 iter, 36.5h (quality poor, kept as checkpoint) | 2026-03-09 |
 | 4 | CD 复现 | ⏹️ Stopped at iter 1500/6000 (quality poor, kept as checkpoint) | 2026-03-10 |
 | 4.1 | f-distill / LADD 复现 | ⚠️ OOM — skipped | - |
-| 5 | **方案调整：使用预训练模型做推理对比** | 🔄 In progress | 2026-03-10 |
-| 5.1 | 下载 rCM 预训练权重 + 部署推理 | 🔄 In progress | 2026-03-10 |
-| 5.2 | 下载 TurboDiffusion 预训练权重 + 部署推理 | 🔄 In progress | 2026-03-10 |
-| 5.3 | 四模型统一 prompt 推理对比 | ⬜ Pending | - |
-| 5.4 | Phase0 Report 完成 | ⬜ Pending | - |
+| 5 | **方案调整：使用预训练模型做推理对比** | ✅ Done | 2026-03-10 |
+| 5.1 | 下载 rCM 预训练权重 + 部署推理 | ✅ Done (patched rope_apply for RTX 5090) | 2026-03-12 |
+| 5.2 | 下载 TurboDiffusion 预训练权重 + 部署推理 | ❌ Failed (CUDA ops incompatible with SM 12.0) | 2026-03-12 |
+| 5.3 | 三模型统一 prompt 推理对比 (Teacher + CausVid + rCM) | ✅ Done (15 videos, 5 per model) | 2026-03-12 |
+| 5.4 | Phase0 Report 完成 | ✅ Done (all sections filled, committed & pushed) | 2026-03-12 |
+| 5.5 | 脚本整理 + 文档编写 | ✅ Done (scripts reorganized into 5 subdirs + README) | 2026-03-12 |
 
 ### Phase 0 Strategy Pivot (2026-03-10)
 
@@ -812,6 +813,69 @@ python train.py \
       dataloader_train.datatags='["WDS:/path/to/training/shards"]' \
       log_config.name=dmd2_wan1.3b_single_gpu
 ```
+
+## Task 5: Pretrained Model Inference Comparison — ✅ COMPLETE
+
+### Background (2026-03-10)
+
+Mentor feedback: Phase 0 should focus on understanding FastGen + exploring capability boundaries,
+not reproducing training from scratch. Self-trained ECT/CD quality was very poor. Pivoted to
+pretrained model inference comparison.
+
+### Execution Log (2026-03-12)
+
+**First attempt (2026-03-10):** Batch script `run_all_inference_comparison.sh` launched via nohup.
+All 4 models failed:
+- Teacher: `torchrun` crashed with exit=1 (should use direct Python for single-GPU)
+- CausVid: `ModuleNotFoundError: No module named 'causvid'` (package not installed)
+- rCM: `TypeError: _pytorch_apply_rotary_emb() got unexpected keyword argument 'interleaved'` (flash_attn fallback incompatible)
+- TurboDiffusion: `ModuleNotFoundError: No module named 'ops'` (custom CUDA extensions not compiled)
+
+**Fixes applied (2026-03-12):**
+1. **Teacher:** Changed from `torchrun --nproc_per_node=1` to direct `python`; used `--prompt_file` instead of OmegaConf `model.prompts=` override
+2. **CausVid:** `pip install -e .` in CausVid directory
+3. **rCM:** Rewrote `rope_apply()` function in `wan2pt1.py` — replaced `flash_apply_rotary_emb(x, cos, sin, interleaved=True)` with pure PyTorch interleaved rotary embedding (cos/sin multiplication + stack)
+4. **TurboDiffusion:** Made `ops` and `SLA` imports conditional, but `create_model()` still calls `FastLayerNorm.from_layernorm()` which is None — requires the CUDA extensions to be compiled for SM 12.0. **Unsolvable without updating kernel code.**
+
+**Second attempt (2026-03-12):** Two scripts deployed:
+- `fix_and_run_inference.sh` → CausVid ✅ (5/5), rCM ✅ (5/5), Teacher ❌ (config error), TurboDiffusion ❌ (ops)
+- `run_teacher_inference.sh` → Teacher ✅ (5/5)
+
+### Final Results
+
+| Model | Method | Steps | Time/Video | Speedup | Videos |
+|-------|--------|-------|-----------|---------|--------|
+| Teacher (Wan2.1-1.3B) | Baseline | 50 | **183s** | 1x | 5/5 ✅ |
+| CausVid (DMD pretrained) | DMD | 3 | **28.5s** | **6.4x** | 5/5 ✅ |
+| rCM (NVlabs pretrained) | Consistency Model | 4 | **37.6s** | **4.9x** | 5/5 ✅ |
+| TurboDiffusion | rCM + Quant | 4 | — | — | 0/5 ❌ |
+
+**Outputs:**
+- Server: `/data/chenqingzhan/fastgen_output/comparison_2026_03_12/{teacher,causvid,rcm}/`
+- Local: `03-dmd-distillation/results/comparison/{teacher,causvid,rcm}/`
+- 15 videos total (5 prompts × 3 models), all using seed=42, 480p 81 frames
+
+### Scripts & Files Reorganization (2026-03-12)
+
+Reorganized 26 scripts from flat `scripts/` into 5 categorized subdirectories:
+- `scripts/setup/` — Environment & model download (2 scripts)
+- `scripts/data/` — Training data preparation (3 scripts)
+- `scripts/configs/` — Custom FastGen experiment configs (2 files)
+- `scripts/inference/` — Inference & evaluation (8 scripts)
+- `scripts/training/` — Distillation training (11 scripts)
+
+Added `scripts/README.md` with detailed documentation for each script.
+Moved `experiment-report-phase0.md` to `archive/` (superseded by `Phase0_Report.md`).
+Moved early test samples to `results/early_tests/`.
+
+### Git Commit
+
+```
+5f5d649 feat(task3): complete Phase 0 inference comparison & reorganize scripts
+```
+Pushed to `origin/Task3_dev_ChenHingChin` on 2026-03-12.
+
+---
 
 ## Appendix C: Installed Package Versions
 

@@ -104,10 +104,10 @@ L_total = α · L_DMD           (分布匹配，主损失，α=1.0)
 
 | 时间 | 里程碑 | 验收标准 | 状态 |
 |------|--------|---------|------|
-| Week 1-2 | 环境搭建，阅读 FastGen 代码，跑通推理 | FastGen 推理 pipeline 可运行 | ✅ 完成 |
-| Week 2-3 | 训练数据准备 (OpenVid-1M → WebDataset) | 50K 样本 WebDataset shards | 🔄 进行中 |
-| Week 3-4 | 跑通 DMD2 蒸馏训练流程（小规模验证） | 小模型蒸馏 Loss 正常收敛 | ⬜ 待开始 |
-| Week 5-6 | 完成复现报告，全组讨论选定最优 codebase | 报告提交 + 方案确定 | ⬜ 待开始 |
+| Week 1-2 | 环境搭建，阅读 FastGen 代码，跑通推理 | FastGen 推理 pipeline 可运行 | ✅ 完成 (2026-03-05) |
+| Week 2-3 | 训练数据准备 (OpenVid-1M → WebDataset) | 21K 样本 WebDataset shards | ✅ 完成 (2026-03-07) |
+| Week 3-4 | ECT/CD 蒸馏训练验证 + CausVid 预训练对比 | Loss 收敛验证 | ✅ 完成 (2026-03-09) |
+| Week 5-6 | Phase 0 报告完成：预训练模型推理对比 (Teacher/CausVid/rCM) | 报告提交 + 方案确定 | ✅ 完成 (2026-03-12) |
 | Week 8-10 | 3D Video Discriminator 训练完成 | Discriminator loss 稳定 | ⬜ 待开始 |
 | Week 10-12 | 50→16→8 步蒸馏完成 | FVD < Teacher × 1.15 | ⬜ 待开始 |
 | Week 12-14 | 8→4 步蒸馏完成 | CLIP-I > 0.80, FVD < 120 | ⬜ 待开始 |
@@ -131,14 +131,17 @@ L_total = α · L_DMD           (分布匹配，主损失，α=1.0)
 - [x] 组会讨论确定训练数据方案：统一使用 OpenVid-1M (2026-03-06)
 - [x] 编写 OpenVid-1M 下载 + WebDataset 转换脚本 (2026-03-06)
 - [x] 创建独立仓库 ChenQingzhan-DMD-distillation (2026-03-06)
-- [ ] 上传脚本到服务器，启动 OpenVid-1M 数据下载 (in progress)
-- [ ] 转换 ~50K 样本为 WebDataset 格式
-- [ ] 推送代码到独立仓库
-- [ ] 使用 FastGen 复现 DMD2 蒸馏训练（小规模验证）
-- [ ] 复现 ECT 方法（对比实验）
-- [ ] 复现 Consistency Distillation 方法（对比实验）
-- [ ] 记录各方法收敛速度、生成质量、显存占用对比
-- [ ] 撰写复现报告（含环境配置/训练日志/踩坑记录/框架评估）
+- [x] 上传脚本到服务器，完成 OpenVid-1M 数据下载 (2026-03-07)
+- [x] 转换 21K 样本为 WebDataset 格式 (2026-03-07)
+- [x] DMD2 训练验证 → OOM (4 networks exceed 32GB)，改用 CausVid 预训练 (2026-03-08)
+- [x] CausVid 预训练推理：3-step, 28.5s/video, 6.4x speedup (2026-03-08)
+- [x] ECT 自训练完成：6000 iter, 36.5h (质量差，作为学习用) (2026-03-09)
+- [x] CD 自训练：停在 1500 iter (质量差，转用预训练模型) (2026-03-10)
+- [x] rCM 预训练推理：4-step, 37.6s/video, 4.9x speedup (2026-03-12)
+- [x] 三模型对比实验完成：Teacher + CausVid + rCM (15 videos) (2026-03-12)
+- [x] 撰写 Phase0 Report（含架构分析/推理对比/能力边界/Phase 1 建议）(2026-03-12)
+- [x] 脚本整理 + 文档编写 (scripts/ 分 5 类 + README) (2026-03-12)
+- [x] 代码提交并推送到远程 (commit 5f5d649) (2026-03-12)
 - [ ] 参加全组讨论，选定最优 codebase
 
 ### Phase 1+：深入研发阶段 (Week 7-16)
@@ -214,4 +217,4 @@ L_total = α · L_DMD           (分布匹配，主损失，α=1.0)
 
 ---
 
-> **最后更新:** 2026-03-07
+> **最后更新:** 2026-03-12
