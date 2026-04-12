@@ -13,6 +13,14 @@
 
 视频 Inpainting（视频修复/物体替换）。使用 VideoPainter（SIGGRAPH 2025）进行视频中目标物体的去除与替换，基于 CogVideoX-5b-I2V 视频扩散模型。
 
+VideoPainter 通过 SAM2 选中目标区域 + prompt 引导生成，可实现以下三类任务：
+
+| 任务 | Prompt 示例 | 说明 |
+|------|------------|------|
+| **去除物体** | `"A clean table with soft lighting"` | 描述去掉物体后的背景 |
+| **替换物体** | `"A red leather wallet on a table"` | 描述想要替换成的物品 |
+| **改变属性** | `"A blue handbag held by a person"` | 描述颜色/材质等变化 |
+
 ## 2. 领域核心问题
 
 本周的核心问题是**复现 VideoPainter 推理时出现的"LED 灯珠矩阵"伪影**。该问题阻塞了整个 VideoPainter 的应用。
@@ -168,16 +176,17 @@
 ### 核心发现
 
 1. **灯珠在我们能测试的所有配置下均出现**，但官方 teaser 显示正常效果
-2. 通过分析官方 `requirements.txt` 和 Gradio Demo 代码，发现官方环境为 **PyTorch 2.4.0 + A100/H100 80GB + `pipe.to("cuda")`**
-3. 我们的限制：RTX 5090 不支持 PyTorch 2.4.0；A100 40GB 显存不够 `pipe.to("cuda")` + 完整帧数
-4. **根本瓶颈：缺少 80GB 显存的 GPU** 来完整复现官方环境
+2. 很可能 CogVideoX 模型本身的代码存在bug。VideoPainter 用的是 diffusers 0.31.0.dev0（预发布版），而官方 diffusers 后来发布了 0.31.0 正式版以及 0.32、0.33 等更新版本。如果是 dev0 的 bug，大概率在后续版本里已经修了。
 
 ## 6. 下周计划
 
-- [ ] **租 A100 80GB 云服务器**（AutoDL/Lambda/RunPod），用 PyTorch 2.4.0 + `pipe.to("cuda")` 完整复现官方环境
-- [ ] **在 VideoPainter GitHub Issues 提问**，向作者反馈排查过程，确认 32GB GPU 的使用方式
+- [ ] 检查更新diffusers，修复方法：
+      1. 对比 fork 里的 CogVideoX 核心文件（transformer、VAE、scheduler）和官方 diffusers 最新版的同名文件
+      2. 找出 diff（dev0 → stable 之间改了什么）
+      3. 把修复 backport 到 fork 里
 - [ ] 灯珠解决后，在商品视频数据集上测试 inpainting 效果
 - [ ] 探索 VideoPainter 用于商品替换（prompt-guided object replacement）的可行性
+- [ ] 解决后，继续复现 propainter (补全背景)
 
 ---
 
