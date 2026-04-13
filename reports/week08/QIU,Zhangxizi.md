@@ -23,6 +23,7 @@
 6. **复用特征构建 APT 轻量级判别器：** 摒弃从零训练判别器的昂贵做法，直接“白嫖”假分数网络（Fake Score Network）的中间特征，加一个可学习的 Token 就能快速实现真假判别（APT 风格）。
 ## 4. 本周工作
 1. 利用Wan2.1的数据集Wan2.1_14B_480p_16:9_Euler-step100_shift-3.0_cfg-5.0_seed-0_250K，基于Wan2.1-T2V-1.3B基模，加入GAN_Loss进行训练
+2. 利用Wan2.1的数据集Wan2.1_14B_480p_16:9_Euler-step100_shift-3.0_cfg-5.0_seed-0_250K，基于Wan2.1-T2V-1.3B基模，整体加入GAN的结构进行训练，当前rCM模型相当于Generator->训崩溃了，出黑图，排查原因中
 
 ## 5. 结论与发现
 1. 没有效果，在rCM中的Fake Score Network相当于给整个网络搭了一个GAN的结构，增强了模型的生成能力
